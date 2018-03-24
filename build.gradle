@@ -1,0 +1,164 @@
+apply plugin: 'com.android.application'
+apply plugin: 'com.antfortune.freeline'
+apply plugin: 'walle'
+
+android {
+    compileSdkVersion 27
+    buildToolsVersion '27.0.2'
+    aaptOptions {
+        cruncherEnabled = false
+        useNewCruncher = false
+    }
+    defaultConfig {
+        minSdkVersion 15
+        targetSdkVersion 26
+        versionCode  27 
+        versionName "1.2.3.27"   
+        multiDexEnabled true
+
+        ndk {
+            abiFilters "armeabi-v7a"  // 指定要ndk需要兼容的架构(这样其他依赖包里mips,x86,armeabi,arm-v8之类的so会被过滤掉)
+        }
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = [moduleName: project.getName()]
+            }
+        }
+        flavorDimensions "color"
+    }
+    afterEvaluate {
+        tasks.matching {
+            it.name.startsWith('dex')
+        }.each { dx ->
+            if (dx.additionalParameters == null) {
+                dx.additionalParameters = []
+            }
+//            dx.additionalParameters += "--set-max-idx-number=50000" // default 60000
+        }
+    }
+    //增加JVM进行DEX操作的内存使用。使用MultiDex以后编译使用的内存增加，编译会产生OOM错误
+    dexOptions {
+        javaMaxHeapSize "4g"
+        preDexLibraries = false
+    }
+    signingConfigs {
+        debug {
+            storeFile file('./yilan.jks')
+            storePassword "yilantech"
+            keyAlias "yilan"
+            keyPassword "yilantech"
+        }
+        release {
+            storeFile file('./yilan.jks')
+            storePassword "yilantech"
+            keyAlias "yilan"
+            keyPassword "yilantech"
+        }
+    }
+
+    def clientFlavors = clienttypelist.tokenize(',')
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+            zipAlignEnabled true
+            debuggable false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    freeline {
+        hack true
+    }
+
+
+
+    android {
+        productFlavors {
+            clientFlavors.each { clienttype ->
+                "$clienttype" {
+                    dimension "color"
+                    applicationId "tv.yilan." + "$clienttype" + ".app"
+                    def getui_app_id = clienttype +"_getui_app_id"
+                    def getui_app_key = clienttype +"_getui_app_key"
+                    def getui_app_secret = clienttype +"_getui_app_secret"
+                    def getui_insight_id = clienttype +"_getui_inisight"
+                    def huawei_app_id = clienttype +"_huawei_app_id"
+                    def meizu_app_id = clienttype +"_meizu_app_id"
+                    def meizu_app_key = clienttype +"_meizu_app_key"
+                    def xiaomi_app_id = clienttype +"_xiaomi_app_id"
+                    def xiaomi_app_key = clienttype +"_xiaomi_app_key"
+                    def qq_app_id = clienttype +"_qq_app_id"
+                    def schema = clienttype +"_schema"
+
+                    println("==========" + project."$schema")
+
+                    manifestPlaceholders = [
+                            GETUI_APP_ID    : project."$getui_app_id",
+                            GETUI_APP_KEY   : project."$getui_app_key",
+                            GETUI_APP_SECRET: project."$getui_app_secret",
+                            GINSIGHT_APP_ID : project."$getui_insight_id",
+                            HUAWEI_APP_ID   : project."$huawei_app_id",
+                            MEIZU_APP_ID    : project."$meizu_app_id",
+                            MEIZU_APP_KEY   : project."$meizu_app_key",
+                            XIAOMI_APP_ID   : project."$xiaomi_app_id",
+                            XIAOMI_APP_KEY  : project."$xiaomi_app_key",
+                            QQ_APP_ID       : project."$qq_app_id",
+                            SCHEMA          : project."$schema",
+                    ]
+                }
+            }
+        }
+        lintOptions {
+            checkReleaseBuilds false
+            // Or, if you prefer, you can continue to check for errors in release builds,
+            // but continue the build even when errors are found:
+            abortOnError false
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    //    compile 'com.gavin.com.library:stickyDecoration:1.1.0'
+    implementation 'com.yanzhenjie:permission:2.0.0-rc3'
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
+    compile 'com.flyco.tablayout:FlycoTabLayout_Lib:2.1.2@aar'
+    debugCompile 'com.squareup.leakcanary:leakcanary-android:1.5.4'
+    releaseCompile 'com.squareup.leakcanary:leakcanary-android-no-op:1.5.4'
+    testCompile 'com.squareup.leakcanary:leakcanary-android-no-op:1.5.4'
+    //freeline
+    //    testCompile 'com.antfortune.freeline:runtime-no-op:0.8.7'
+    //    debugCompile 'com.antfortune.freeline:runtime:0.8.7'
+    //    releaseCompile 'com.antfortune.freeline:runtime-no-op:0.8.7'
+    //freeline end
+    compile project(':player')
+    compile project(':push')
+    compile project(path: ':share')
+    compile project(':share')
+    compile project(':net')
+    compile project(':db')
+    compile project(':imlib')
+    compile project(':download')
+    compile project(':million')
+    compile project(':ad')
+    //arouter
+    annotationProcessor 'com.alibaba:arouter-compiler:1.1.4'
+}
+
+walle {
+    // 指定渠道包的输出路径
+    apkOutputFolder = new File("${project.buildDir}/outputs/channels");
+    // 定制渠道包的APK的文件名称 ${appName}-${packageName}-${channel}-${buildType}-v${versionName}-${versionCode}-${buildTime}.apk
+    apkFileNameFormat = '${flavorName}-${channel}-v${versionName}-${versionCode}-${buildTime}.apk'
+    // 渠道配置文件
+    channelFile = new File("${project.getProjectDir()}/channels.txt")
+}
+
+repositories {
+    maven {
+        url 'http://dl.bintray.com/raphaelbussa/maven'
+    }
+}
